@@ -52,22 +52,23 @@ $mods = File::Wildcard->new (path => 'lib/F*/Wildcard.pm',
 #11
 isa_ok ($mods, 'File::Wildcard', "return from new");
 
-my @found = $mods->all;
+my @found = map {lc $_} $mods->all;
 
 #12 
-is_deeply (\@found, [qw( lib/File/Wildcard.pm )], 
+is_deeply (\@found, [qw( lib/file/wildcard.pm )], 
              'Wildcard further back in path');
 
 $mods = File::Wildcard->new (path => './//Wildcard.pm',
-                            debug => $debug);
+                            debug => $debug,
+                             sort => 1);
 
 #13
 isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
 
-@found = sort $mods->all;
+@found = map {lc $_} $mods->all;
 
 #14 
-is_deeply (\@found, [qw( blib/lib/File/Wildcard.pm lib/File/Wildcard.pm )], 
+is_deeply (\@found, [qw( blib/lib/file/wildcard.pm lib/file/wildcard.pm )], 
              'Ellipsis found blib and lib modules');
 
 

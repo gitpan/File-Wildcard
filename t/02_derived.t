@@ -12,16 +12,17 @@ BEGIN { use_ok( 'File::Wildcard' ); }
 
 my $mods = File::Wildcard->new (path => './//*.pm',
                               derive => [ '$1/$2.tmp' ],
-                               debug => $debug);
+                               debug => $debug,
+                                sort => 1);
 
 #02
 isa_ok ($mods, 'File::Wildcard', "return from new");
 
-my @found = sort {$a->[0] cmp $b->[0]} $mods->all;
+my @found = map { [ map {lc $_} @$_ ] } $mods->all;
 
 #03 
-is_deeply (\@found, [ [ qw( blib/lib/File/Wildcard.pm blib/lib/File/Wildcard.tmp ) ],
-                      [ qw( lib/File/Wildcard.pm lib/File/Wildcard.tmp)]], 
+is_deeply (\@found, [ [ qw( blib/lib/file/wildcard.pm blib/lib/file/wildcard.tmp ) ],
+                      [ qw( lib/file/wildcard.pm lib/file/wildcard.tmp)]], 
              'Returned expected derived list');
 
 $mods = File::Wildcard->new( path => 'lib/File/Wild????.*',
@@ -31,8 +32,9 @@ $mods = File::Wildcard->new( path => 'lib/File/Wild????.*',
 #04
 isa_ok ($mods, 'File::Wildcard', "return from new");
 
+@found = map {lc $_} @{$mods->next};
 #05
-is_deeply ($mods->next, [qw( lib/File/Wildcard.pm Playingcard.pm )],
+is_deeply (\@found, [qw( lib/file/wildcard.pm playingcard.pm )],
              'Multiple patterns in the same component');
 
 #06

@@ -1,5 +1,11 @@
 Revision history for Perl module File::Wildcard
 
+0.04 Thu Jul 29 2004
+      Added functionality to sort directories, and to process the ellipsis
+      in different orders.
+      Fix VMS: dirhandles return .dir on the end of each directory.
+      Make tests able to deal with case insensitive O/S.
+
 0.03 Sun Jul 11 2004
       A major revision of the API. Instead of the user supplying a regex
       as 'path', the user supplies a globbing string. 

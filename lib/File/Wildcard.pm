@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 
 =head1 NAME
 
@@ -52,7 +52,7 @@ C<File::Wildcard->new( $wildcard, [,option => value,...]);>
 This is the constructor for File::Wildcard objects. At a simple level,
 pass a single wildcard string as a path. 
 
-For more complicated operations, you can supply your own match regexp, and
+For more complicated operations, you can supply your own match regexp, or
 use the derive option to specify regular expression captures to form 
 the basis of other filenames that are constructed for you.
 
@@ -92,6 +92,10 @@ This is ignored unless you are using a pre split path. If you
 are passing a string as the path, B<new> will work out whether the path is
 absolute or relative. Pass a true value for absolute paths.
 
+If your original filespec started with '/' before you split it, specify
+absolute => 1. B<absolute> is not required for Windows if the path contains
+a drive specification, e.g. C:/foo/bar.
+
 =item *
 B<match>
 
@@ -113,6 +117,42 @@ an arrayref instead of a scalar.
 B<follow>: (TODO - Not yet implemented)
 If given a true value indicates that symbolic links are to be
 followed. 
+
+=item *
+B<ellipsis_order>
+
+This can take one of the following values: normal, breadth-first, inside-out.
+The default option is normal. This controls how File::Wildcard handles
+the ellipsis. The default is a normal depth first search, presenting the
+name of each containing directory before the contents. 
+
+The inside-out order presents the contents of directories first before 
+the directory, which is useful when you want to remove files and directories
+(all O/S require directories to be empty before rmdir will work). See 
+t/03_absolute.t as this uses inside-out order to tidy up after the test.
+
+Bredth-first is rarely needed (but I do have an application for it). Here,
+the whole directory contents is presented before traversing any subdirectories.
+
+Consider the following tree:
+   a/
+   a/bar/
+   a/bar/drink
+   a/foo/
+   a/foo/lish
+
+breadth-first will give the following order: qw(a/ a/bar/ a/foo/ a/bar/drink 
+a/foo/lish). normal gives the order in which the files are listed. 
+inside-out gives the following: qw(a/bar/drink a/bar/ a/foo/lish a/foo/ a/).
+
+=item *
+B<sort>
+
+By default, globbing returns the list of files in the order in which they 
+are returned by the dirhandle (internally). If you specify sort => 1, the
+files are sorted into ASCII sequence. If you specify a CODEREF, this will
+be used as a comparison routine. Note that this takes its operands in @_,
+not in $a and $b.
 
 =back
 
@@ -176,7 +216,7 @@ C<reset> causes the wildcard context to be set to re-read the first filename
 again. Note that this will cause directory contents to be re-read.
 
 Note also that this will cause the path to revert to the original path
-specified to B<new>. Any additional paths pushed or unshifted will be 
+specified to B<new>. Any additional paths appended or prepended will be 
 forgotten.
 
 =head2 close
@@ -283,6 +323,10 @@ sub new {
           follow => 0,
           absolute => 0,
           match => { type => SCALARREF, optional => 1 },
+          sort => { type => SCALAR | CODEREF | UNDEF, optional => 1 },
+          ellipsis_order => { type => SCALAR, 
+                             regex => qr/(normal|breadth-first|inside-out)/,
+                           default => 'normal' },
           debug => 0,
         } );
 
@@ -436,7 +480,7 @@ sub _set_state {
 
     my %par = validate( @_ , {
                 state => { type => SCALAR },
-                dir => { type => GLOBREF, optional => 1 },
+                dir => { type => GLOBREF | CODEREF, optional => 1 },
                 wildcard => 0,
                 } );
     $self->{$_} = $par{$_} for keys %par;
@@ -445,7 +489,8 @@ sub _set_state {
 sub _push_state {
     my $self = shift;
 
-    print STDERR "Push state: resulting_path: ".
+    print STDERR "Push state: ".
+           $self->{state}. " resulting_path: ".
            $self->{resulting_path}.
            " Wildcard: " . $self->{wildcard} .
            " path_remaining: ".
@@ -492,6 +537,7 @@ sub _state_nextdir {
     my $self = shift;
 
     unless (@{$self->{path_remaining}}) {
+        print STDERR "Exhaused path\n" if $self->{debug};
         my $re = $self->{match};
         $self->{retval} = $self->derived 
             if (-e $self->{resulting_path}) && 
@@ -501,11 +547,16 @@ sub _state_nextdir {
     }
 
     my $pathcomp = shift @{$self->{path_remaining}};
-
+    print STDERR "Path component '$pathcomp'\n" if $self->{debug};
     if ($pathcomp eq '') {
-        $self->_set_state( state => 'ellipsis');
-        $self->_push_state;
-        $self->_set_state( state => 'nextdir' );
+        my $order = $self->{ellipsis_order};
+        $self->_set_state( state => 
+            ($order eq 'inside-out') ? 'nextdir' : 'ellipsis');
+        if ($order ne 'breadth-first') {
+            $self->_push_state;
+            $self->_set_state( state => 
+                ($order eq 'inside-out') ? 'ellipsis' : 'nextdir');
+        }
     }
     elsif ($pathcomp !~ /\?|\*/) {
         $self->{resulting_path} .= $pathcomp;
@@ -517,11 +568,30 @@ sub _state_nextdir {
         my $wc_re = quotemeta $pathcomp;
         $wc_re =~ s!((?:\\\?)+)!'(.{'.(length($1)/2).'})'!eg;
         $wc_re =~ s!\\\*!([^/]*)!g;
-        $self->_set_state( state => 'wildcard', 
+        my %newstate = (
+                           state => 'wildcard', 
                              dir => $wcdir, 
                         wildcard => $case_insensitive ? 
                                               qr(^$wc_re$)i : 
                                               qr(^$wc_re$));
+        if ($self->{sort}) {
+            my @wcmatch = grep { 
+                ($_ ne '.') && 
+                ($_ ne '..') && 
+                ($case_insensitive ? /$wc_re/i : /$wc_re/)}
+                readdir($wcdir);
+
+            if ($^O =~ /vms/i) {
+                s/\.dir$// for @wcmatch;
+            }
+            
+            @wcmatch = (ref($self->{sort}) eq 'CODE') ?
+                       (sort {&{$self->{sort}}($a,$b)} @wcmatch) :
+                       (sort @wcmatch);
+            $newstate{state} = 'wildcard_sorted';
+            $newstate{dir} = sub {shift @wcmatch};
+        }
+        $self->_set_state( %newstate);
     }
 }
 
@@ -534,16 +604,35 @@ sub _state_wildcard {
         $fil = readdir $self->{dir};
         return $self->_pop_state unless defined $fil;
     }
+    $fil =~ s/.dir$// if $^O =~ /vms/i;
     $self->_push_state;
     unshift @{$self->{path_remaining}}, $fil;
     $self->_set_state ( state => 'nextdir' );
 }
 
+sub _state_wildcard_sorted {
+    my $self = shift;
+
+    my $fil = &{$self->{dir}};
+    return $self->_pop_state unless $fil;
+    $self->_push_state;
+    unshift @{$self->{path_remaining}}, $fil;
+    $self->_set_state ( state => 'nextdir' );
+}    
+
 sub _state_ellipsis {
     my $self = shift;
 
-    unshift @{$self->{path_remaining}}, '*', '';
-    $self->_set_state( state => 'nextdir' );
+    if ($self->{ellipsis_order} eq 'breadth-first') {
+        unshift @{$self->{path_remaining}}, '*', '';
+        $self->_set_state( state => 'nextdir' );
+        $self->_push_state;
+        splice @{$self->{path_remaining}},1,1;
+    }
+    else {
+        unshift @{$self->{path_remaining}}, '*', '';
+        $self->_set_state( state => 'nextdir' );
+    }
 }
 
 1; #this line is important and will help the module return a true value

@@ -21,18 +21,18 @@ ok (!$mods->next, 'Empty object gives no files');
 $mods->append( path => 'lib///*.pm' );
 $mods->append( path => './//04*.t' );
 
-my  @found = $mods->all;
+my  @found = map {lc $_} $mods->all;
 
 #04 
-is_deeply (\@found, [qw( lib/File/Wildcard.pm t/04_append.t )], 
+is_deeply (\@found, [qw( lib/file/wildcard.pm t/04_append.t )], 
              'Appended wildcards');
              
 $mods->prepend( path => './//04*.t' );
 $mods->prepend( path => 'lib///*.pm' );
 
-@found = $mods->all;
+@found = map {lc $_} $mods->all;
 
 #05 
-is_deeply (\@found, [qw( lib/File/Wildcard.pm t/04_append.t )], 
+is_deeply (\@found, [qw( lib/file/wildcard.pm t/04_append.t )], 
              'Prepended wildcards');
 
