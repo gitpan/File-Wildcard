@@ -1,5 +1,5 @@
 TODO list for Perl module File::Wildcard
 
-- Make portable, other platforms: Windows, VMS
+- Make portable, other platforms: VMS
 
-
+- Processing of symbolic links

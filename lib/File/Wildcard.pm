@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 =head1 NAME
 
@@ -28,7 +28,8 @@ This module provides this facility to Perl. Whereas native VMS syntax uses
 the ellipsis "...", this will not fit in with POSIX filenames, as ... is a
 valid (though somewhat strange) filename. Instead, the construct "///" is
 used as this cannot syntactically be part of a filename, as you do not get
-three concurrent filename separators with nothing between.
+three concurrent filename separators with nothing between (three slashes
+are used to avoid confusion with //node/path/name syntax).
 
 The module also takes B<regular expressions> in any part of the wildcard
 string between slashes, and can bind a series of back references ($1, $2
@@ -41,8 +42,8 @@ etc.) which are available to construct new filenames.
 C<File::Wildcard->new( $wildcard, [,option => value,...]);>
 
   my $foo = File::Wildcard->new( path => "/home/me///core");
-  my $srcfnd = File::Wildcard->new( path => "src///(.*)\.cpp",
-               derive => ["src/$1/$2.o","src/$1/$2.hpp"]);
+  my $srcfnd = File::Wildcard->new( path => "src(///.*)\.cpp",
+               derive => ['src/$1.o','src/$1.hpp']);
 
 This is the constructor for File::Wildcard objects. At a simple level,
 pass a single wildcard string. For more complicated operations, you can
@@ -56,11 +57,19 @@ Here are the options that are available:
 
 =over 4
 =item *
+B<path>: mandatory. This is the input parameter that specifies the regexp
+for the required files. Note that any meta-characters that are part of
+file names (such as '.') will need to be escaped with a backslash.
+
+Note that the path can be relative or absolute. B<new> will do the right
+thing, working out that a path starting with '/' is absolute. In order
+to recurse from the current directory downwards, specify '\.///foo'.
 B<derive>: supply an arrayref with a list of derived filenames, which
-will be constructed for each matching file.
+will be constructed for each matching file. This causes B<next> to return
+an arrayref instead of a scalar.
 =item *
 B<follow>: if given a true value indicates that symbolic links are to be
-followed.
+followed. (TODO)
 
 =back
 
@@ -69,12 +78,12 @@ followed.
   while (my $core = $foo->next) {
       unlink $core;
   }
-  my ($src,$obj,$hdr) = $srcfnd->next;
+  my ($src,$obj,$hdr) = @{$srcfnd->next};
 
-The C<next> method is an iterator, which returns successive files. Scalar
-context can be used in the case of a simple find. If more than one spec was
-passed to new, these files are constructed and returned as a list. There is
-no check that these files actually exist.
+The C<next> method is an iterator, which returns successive files. Returns
+matching files if there was no derive option passed to new. If there was
+a derive option, returns an arrayref containing the matching filespec and
+all derived filespecs. The derived filespecs do not have to exist.
 
 Note that C<next> maintains an internal cursor, which retains context and
 state information. Beware if the contents of directories are changing while
@@ -282,9 +291,6 @@ sub _state_initial {
 
     $self->{resulting_path} = $self->{absolute} ? '/' : '';
     $self->{path_remaining} = [ @{$self->{path}} ];
-    #my $re = join '/', @{$self->{path}};
-    #$re =~ s!/(/|$)!/(.*?)!;
-    #$self->{path_regexp} = qr($re);
 
     $self->_set_state ( state => 'finished');
     $self->_push_state;
@@ -316,7 +322,6 @@ sub _state_nextdir {
         $self->{resulting_path} .= '/' if @{$self->{path_remaining}};
     }
     elsif ($pathcomp eq '') {
-#        unshift @{$self->{path_remaining}}, $pathcomp;
         $self->_set_state( state => 'ellipsis');
         $self->_push_state;
         $self->_set_state( state => 'nextdir' );

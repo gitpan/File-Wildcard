@@ -1,5 +1,7 @@
 Revision history for Perl module File::Wildcard
 
-0.01 Sat Jun 24 10:54:02 2004
+0.01 Wed Jun 24
       Initial version. Works on Unix.
 
+0.02 Thu Jun 25
+      Fixed errors in the POD
