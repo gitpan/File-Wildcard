@@ -6,5 +6,7 @@ Changes
 lib/File/Wildcard.pm
 t/01_basic.t
 t/02_derived.t
+t/03_absolute.t
+t/04_append.t
 Makefile.PL
 META.yml                                 Module meta-data (added by MakeMaker)

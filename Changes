@@ -1,7 +1,12 @@
 Revision history for Perl module File::Wildcard
 
-0.01 Wed Jun 24
-      Initial version. Works on Unix.
+0.03 Sun Jul 11 2004
+      A major revision of the API. Instead of the user supplying a regex
+      as 'path', the user supplies a globbing string. 
+      Added append and prepend methods.
 
-0.02 Thu Jun 25
+0.02 Thu Jun 25 2004
       Fixed errors in the POD
+
+0.01 Wed Jun 24 2004
+      Initial version. Works on Unix.

@@ -1,0 +1,38 @@
+# -*- perl -*-
+
+# t/04_append.t - Tests for multiwildcard append and prepend
+
+use strict;
+use Test::More tests => 5;
+
+my $debug = $ENV{FILE_WILDCARD_DEBUG} || 0;
+
+#01
+BEGIN { use_ok( 'File::Wildcard' ); }
+
+my $mods = File::Wildcard->new ( debug => $debug);
+
+#02
+isa_ok ($mods, 'File::Wildcard', "return from new");
+
+#03
+ok (!$mods->next, 'Empty object gives no files');
+
+$mods->append( path => 'lib///*.pm' );
+$mods->append( path => './//04*.t' );
+
+my  @found = $mods->all;
+
+#04 
+is_deeply (\@found, [qw( lib/File/Wildcard.pm t/04_append.t )], 
+             'Appended wildcards');
+             
+$mods->prepend( path => './//04*.t' );
+$mods->prepend( path => 'lib///*.pm' );
+
+@found = $mods->all;
+
+#05 
+is_deeply (\@found, [qw( lib/File/Wildcard.pm t/04_append.t )], 
+             'Prepended wildcards');
+

@@ -1,3 +1,10 @@
+Note: there are API changes from the previous version 0.02.
+
+File::Wildcard->( path => $path) now expects a path not a regexp. You
+are expected to pass in dots unescaped. You are also expected to pass
+wildcards as the standard globbing wildcards '*' and '?'. This is 
+different from version 0.02, which expected a regexp.
+
 This is a bog standard install:
 
 perl Makefile.PL
