@@ -1,0 +1,12 @@
+This is a bog standard install:
+
+perl Makefile.PL
+make
+make test
+make install
+
+
+If you are on a windows box you should use 'nmake' rather than 'make'.
+
+Please refer to the POD - perldoc File::Wildcard for information
+on how to use this module.
