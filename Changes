@@ -1,5 +1,10 @@
 Revision history for Perl module File::Wildcard
 
+0.05 Fri Sep  9 2005
+      Changed to use Module::Optional to remove the dependency on 
+      Params::Validate.
+      Fixed symlink support, and added 'follow' parameter.
+
 0.04 Thu Jul 29 2004
       Added functionality to sort directories, and to process the ellipsis
       in different orders.

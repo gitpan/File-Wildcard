@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 
 =head1 NAME
 
@@ -38,8 +38,6 @@ The module also forms a B<regular expression> for the whole of the wildcard
 string, and binds a series of back references ($1, $2
 etc.) which are available to construct new filenames.
 
-
-
 =head2 new
 
 C<File::Wildcard->new( $wildcard, [,option => value,...]);>
@@ -63,8 +61,7 @@ Here are the options that are available:
 
 =over 4
 
-=item *
-B<path> 
+=item C<path> 
 
 This is the input parameter that specifies the range
 of files that will be looked at. This is a glob spec which can also contain
@@ -85,8 +82,7 @@ You can also construct a File::Wildcard without a path. A call to
 B<next> will return undef, but paths can be added using the append and prepend
 methods.
 
-=item *
-B<absolute>
+=item C<absolute>
 
 This is ignored unless you are using a pre split path. If you
 are passing a string as the path, B<new> will work out whether the path is
@@ -96,8 +92,7 @@ If your original filespec started with '/' before you split it, specify
 absolute => 1. B<absolute> is not required for Windows if the path contains
 a drive specification, e.g. C:/foo/bar.
 
-=item *
-B<match>
+=item C<match>
 
 Optional. If you do not specify a regexp, you get all the files
 that match the glob; in addition, B<new> will set up a regexp for you, to
@@ -106,20 +101,22 @@ provide a capture for each wildcard used in the path.
 If you do provide a match parameter, this will be used instead, and will
 filter the results.
 
-=item *
-B<derive>
+=item C<derive>
 
 Supply an arrayref with a list of derived filenames, which
 will be constructed for each matching file. This causes B<next> to return
 an arrayref instead of a scalar.
 
-=item *
-B<follow>: (TODO - Not yet implemented)
-If given a true value indicates that symbolic links are to be
-followed. 
+=item C<follow>
 
-=item *
-B<ellipsis_order>
+If given a true value indicates that symbolic links are to be followed. Otherwise,
+the symbolic link target itself is presented, but the ellipsis will not traverse
+the link.
+
+This module detects a looping symlink that points to a directory higher up, and
+will only present the tree once.
+
+=item C<ellipsis_order>
 
 This can take one of the following values: normal, breadth-first, inside-out.
 The default option is normal. This controls how File::Wildcard handles
@@ -131,7 +128,7 @@ the directory, which is useful when you want to remove files and directories
 (all O/S require directories to be empty before rmdir will work). See 
 t/03_absolute.t as this uses inside-out order to tidy up after the test.
 
-Bredth-first is rarely needed (but I do have an application for it). Here,
+Breadth-first is rarely needed (but I do have an application for it). Here,
 the whole directory contents is presented before traversing any subdirectories.
 
 Consider the following tree:
@@ -145,8 +142,7 @@ breadth-first will give the following order: qw(a/ a/bar/ a/foo/ a/bar/drink
 a/foo/lish). normal gives the order in which the files are listed. 
 inside-out gives the following: qw(a/bar/drink a/bar/ a/foo/lish a/foo/ a/).
 
-=item *
-B<sort>
+=item C<sort>
 
 By default, globbing returns the list of files in the order in which they 
 are returned by the dirhandle (internally). If you specify sort => 1, the
@@ -196,8 +192,10 @@ all derived filespecs. The derived filespecs do not have to exist.
 Note that C<next> maintains an internal cursor, which retains context and
 state information. Beware if the contents of directories are changing while
 you are iterating with next; you may get unpredictable results. If you are
-changing the contents of the directories you are scanning, you are better
-off slurping the whole tree with C<all>.
+intending to change the contents of the directories you are scanning (with unlink 
+or rename), you are better off deferring this operation until you have processed
+the whole tree. For the pending delete or rename operations, you could always
+use another File::Wildcard object - see the spike example below:
 
 =head2 all
 
@@ -208,7 +206,10 @@ array of arrays if you are constructing new filenames, like the $srcfnd
 example.
 
 Beware of the performance and memory implications of using C<all>. The
-method will not return until it has read the entire directory tree.
+method will not return until it has read the entire directory tree. Use of
+the C<all> method is not recommended for traversing large directory trees
+and whole file systems. Consider coding the traversal using the iterator
+C<next> instead.
 
 =head2 reset
 
@@ -284,15 +285,10 @@ the POSIX form. There is of course no difference on Unix platforms.
 
 Please report bugs to http://rt.cpan.org
 
-=head1 SUPPORT
-
-This is an Alpha release. Also note that I am supporting it in my unpaid
-spare time.
-
 =head1 AUTHOR
 
 	Ivor Williams
-	ivorw-file-wildcard@xemaps.com
+	ivorw-file-wildcard at xemaps.com
 
 =head1 COPYRIGHT
 
@@ -305,11 +301,13 @@ LICENSE file included with this module.
 
 =head1 SEE ALSO
 
-glob(3), L<File::Find>.
+glob(3), L<File::Find>, L<File::Find::Rule>.
 
 =cut
 
-use Params::Validate qw(:all);
+use Params::Validate::Dummy qw();
+use Module::Optional qw(Params::Validate :all);
+use File::Spec;
 use Carp;
 
 our $case_insensitive = $^O =~ /vms|win/i;
@@ -330,6 +328,7 @@ sub new {
           debug => 0,
         } );
 
+    $par{ellipsis_order} ||= 'normal';
     ($par{path},$par{absolute}) = $pkg->_split_path ( 
                                   @par{qw/path absolute follow/});
 
@@ -384,6 +383,7 @@ sub close {
 
     delete $self->{stack};
     delete $self->{dir};
+    delete $self->{seen_symlink};
     $self->_set_state( state => 'finished');
 }
 
@@ -468,7 +468,7 @@ sub _split_path {
     $path =~ s!//!/!g;
     $abs = $path =~ s!^/!!;
     $path =~ s!^\./!/!;
-    my @out = split m(/),$path,-1;
+    my @out = split m(/),$path,-1;   #/ (syntax highlighting)
     shift @out if $out[0] eq '';
     pop @out if $out[-1] eq '';
 
@@ -560,6 +560,17 @@ sub _state_nextdir {
     }
     elsif ($pathcomp !~ /\?|\*/) {
         $self->{resulting_path} .= $pathcomp;
+	my $rp = $self->{resulting_path};
+	my $sl = readlink $rp;
+	if ($sl) {
+	    my $slpath = File::Spec->rel2abs($sl,$rp);
+	    if (exists $self->{seen_symlink}{$slpath}) {
+	        $self->_pop_state;
+		return;
+	    }
+	    $self->{seen_symlink}{$slpath}++;
+	    $self->{path_remaining} = [] unless $self->{follow};
+	}
         $self->{resulting_path} .= '/' if -d $self->{resulting_path};
     }
     else {
