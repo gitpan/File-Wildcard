@@ -1,5 +1,10 @@
 Revision history for Perl module File::Wildcard
 
+0.06 Sun Sep 25 2005
+      Reviewed kwalitee and coverage. Added pod and pod_coverage tests.
+      Case sensitivity: use Filesys::Type as an optional module.
+      Debug logging to a file handle.
+
 0.05 Fri Sep  9 2005
       Changed to use Module::Optional to remove the dependency on 
       Params::Validate.

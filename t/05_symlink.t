@@ -23,9 +23,11 @@ BEGIN {
 my $debug = $ENV{FILE_WILDCARD_DEBUG} || 0;
 
 my $mods = File::Wildcard->new (path => './//*sym*',
-			       match => qr/sym/,
 				sort => 1,
+#			       match => qr/sym/,
                                debug => $debug);
+
+$mods->match(qr/sym/);
 
 #02
 isa_ok ($mods, 'File::Wildcard', "return from new");

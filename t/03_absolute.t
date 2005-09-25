@@ -50,7 +50,13 @@ close FOO;
 open FOO, ">$temp/abs/bar/drink.tmp";
 close FOO;
 
+# Force the case sensitivity for absolute files
+# as it says in the docs
+
+my $sens = Filesys::Type::case($temp) ne 'sensitive';
+
 my $mods = File::Wildcard->new (path => "$temp/abs/foo/lish.tmp",
+		    case_insensitive => $sens,
                                debug => $debug);
 
 #02
@@ -62,8 +68,12 @@ like ($mods->next, qr"$temp/abs/foo/lish.tmp"i, 'Simple case, no wildcard');
 #04
 ok (!$mods->next, 'Only found one file');
 
-$mods = File::Wildcard->new (path => "$temp/abs/*/*.tmp",
+my ($junk,@chunks) = split m'/',"$temp/abs/*/*.tmp";
+
+$mods = File::Wildcard->new (path => \@chunks,
+		 case_insensitive => $sens,
                             debug => $debug,
+			 absolute => 1,
                              sort => 1);
 
 #05
@@ -76,6 +86,7 @@ is_deeply (\@found, ["$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp"],
              'Wildcard in filename');
 
 $mods = File::Wildcard->new (path => "$temp///*.tmp",
+		 case_insensitive => $sens,
                             debug => $debug,
                              sort => 1);
 
@@ -89,6 +100,7 @@ is_deeply (\@found, ["$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp"],
              'Ellipsis found tmp files');
 
 $mods = File::Wildcard->new (path => "$temp///",
+		 case_insensitive => $sens,
                             debug => $debug,
                              sort => 1);
 
@@ -108,6 +120,7 @@ is_deeply (\@found, [ "$temp/",
              'Recursive directory search (normal)');
 
 $mods = File::Wildcard->new (path => "$temp///",
+		 case_insensitive => $sens,
                             debug => $debug,
                              sort => sub { $_[1] cmp $_[0] });
 
@@ -127,6 +140,7 @@ is_deeply (\@found, [ "$temp/",
              'Recursive directory search (custom sort)');
 
 $mods = File::Wildcard->new (path => "$temp///",
+		 case_insensitive => $sens,
                             debug => $debug,
                              sort => 1,
                    ellipsis_order => 'breadth-first');
@@ -150,6 +164,7 @@ is_deeply (\@found, [
              'Recursive directory search (breadth-first)');
 
 $mods = File::Wildcard->new (path => "$temp///",
+		 case_insensitive => $sens,
                             debug => $debug,
                              sort => 1,
                    ellipsis_order => 'inside-out');

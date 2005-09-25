@@ -9,5 +9,7 @@ t/02_derived.t
 t/03_absolute.t
 t/04_append.t
 t/05_symlink.t
+t/pod.t
+t/pod_coverage.t
 Makefile.PL
 META.yml                                 Module meta-data (added by MakeMaker)
