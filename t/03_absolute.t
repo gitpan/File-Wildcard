@@ -10,7 +10,7 @@ BEGIN {
         plan skip_all => "Cannot test absolute POSIX files on this platform";
     }
     else {
-        plan tests => 17;
+        plan tests => 18;
     }
 
     #01
@@ -81,9 +81,14 @@ isa_ok ($mods, 'File::Wildcard', "return from new");
 
 my @found = $mods->all;
 
+SKIP:
+{
+    skip 'This test unreliable on Windows', 1 if $^O =~ /win/i;
+    
 #06 
 is_deeply (\@found, ["$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp"], 
              'Wildcard in filename');
+}
 
 $mods = File::Wildcard->new (path => "$temp///*.tmp",
 		 case_insensitive => $sens,
@@ -185,6 +190,20 @@ is_deeply (\@found, [
                     ], 
              'Recursive directory search (inside-out)');
 
+$mods->append( path => "$temp///" );
+@found = $mods->all;
+
+#17 
+is_deeply (\@found, [ 
+                      "$temp/abs/bar/drink.tmp", 
+                      "$temp/abs/bar/", 
+                      "$temp/abs/foo/lish.tmp",
+                      "$temp/abs/foo/",
+                      "$temp/abs/",
+                      "$temp/",
+                    ], 
+             'Append to absolute');
+             
 # Tidy up after tests
 
 for (@found) {
@@ -198,5 +217,5 @@ for (@found) {
 
 rmdir $temp;
 
-#17
+#18
 ok(!-e $temp,"Test has tidied up after itself");

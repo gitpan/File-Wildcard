@@ -3,7 +3,7 @@
 # t/04_append.t - Tests for multiwildcard append and prepend
 
 use strict;
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 my $debug = $ENV{FILE_WILDCARD_DEBUG} || 0;
 
@@ -36,3 +36,9 @@ $mods->prepend( path => 'lib///*.pm' );
 is_deeply (\@found, [qw( lib/file/wildcard.pm t/04_append.t )], 
              'Prepended wildcards');
 
+$mods->append( path => 'lib/File///' );
+$mods->match( qr{ \Alib/File/(.*)\.pm\z }xms );
+@found = map {lc $_} $mods->all;
+
+#06
+is_deeply (\@found, [qw( lib/file/wildcard.pm )], 'Append with match');

@@ -3,10 +3,15 @@
 # t/01_basic.t - basic tests
 
 use strict;
-use Test::More tests => 31;
+use Test::More tests => 35;
 
 my $dbf;
 my $debug = open $dbf,'>','debug.out';
+
+if ($ENV{FILE_WILDCARD_DEBUG}) {
+    close $dbf;
+    $dbf = \*STDERR;
+}
 
 BEGIN {
     local $ENV{MODULE_OPTIONAL_SKIP} = 1;
@@ -104,9 +109,24 @@ for my $insens (0, 1) {
     @found = map {lc $_} $mods->all;
 
 #16 
-   is_deeply (\@found, [qw( blib/lib/file/wildcard.pm lib/file/wildcard.pm )], 
+    is_deeply (\@found, [qw( blib/lib/file/wildcard.pm lib/file/wildcard.pm )], 
              'Ellipsis found blib and lib modules');
 
+    $mods = File::Wildcard->new (path => './//Wildcard.pm',
+                            case_insensitive => $insens,
+                            debug_output => $dbf,
+                            debug => $debug,
+                            exclude => qr/^blib/,
+                            sort => 1);
+
+#17
+    isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+
+    @found = map {lc $_} $mods->all;
+
+#18 
+    is_deeply (\@found, [qw( lib/file/wildcard.pm )], 
+             'Ellipsis found lib, blib excluded');
 }
 
 undef $dbf;

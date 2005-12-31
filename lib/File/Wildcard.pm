@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = 0.06;
+our $VERSION = 0.07;
 
 =head1 NAME
 
@@ -106,6 +106,16 @@ on the wildcard.
 Note that File::Wildcard will use the file system of the current working
 directory if the path is not absolute. If the path is absolute, you should
 specify the case_sensitivity option explicitly.
+
+=item C<exclude>
+
+You can provide a regexp to apply to any generated paths, which will cause
+any matching paths not to be processed. If the root of a directory tree
+matches, no processing is done on the entire tree.
+
+This option can be useful for excluding version control repositories, e.g. 
+
+  exclude => qr/.svn/
 
 =item C<match>
 
@@ -338,7 +348,7 @@ use strict;
 
 sub case {
     return 'insensitive' if $^O =~ /win|dos/i;
-    return 'lower' if $^O =~ /vms/i;
+    return 'lower'       if $^O =~ /vms/i;
     return 'sensitive';
 }
 
@@ -350,53 +360,57 @@ use Carp;
 sub new {
     my $pkg = shift;
 
-    my %par = validate( @_,
-        { derive => 0,
-          path => { type => SCALAR | ARRAYREF, optional => 1 },
-          follow => 0,
-          absolute => 0,
-          match => { type => SCALARREF, optional => 1 },
-          sort => { type => SCALAR | CODEREF | UNDEF, optional => 1 },
-          ellipsis_order => { type => SCALAR, 
-                             regex => qr/(normal|breadth-first|inside-out)/,
-			     optional => 1,
-                            },
-	  case_insensitive => { type => SCALAR, optional =>1 },
-          debug => { type => SCALAR, optional => 1 },
-	  debug_output => 0,
-        } );
+    my %par = validate(
+        @_,
+        {
+            derive   => 0,
+            path     => { type => SCALAR | ARRAYREF, optional => 1 },
+            follow   => 0,
+            absolute => 0,
+            match    => { type => SCALARREF, optional => 1 },
+            exclude  => { type => SCALARREF, optional => 1 },
+            sort     => { type => SCALAR | CODEREF | UNDEF, optional => 1 },
+            ellipsis_order => {
+                type     => SCALAR,
+                regex    => qr/(normal|breadth-first|inside-out)/,
+                optional => 1,
+            },
+            case_insensitive => { type => SCALAR, optional => 1 },
+            debug            => { type => SCALAR, optional => 1 },
+            debug_output     => 0,
+        }
+    );
 
     $par{ellipsis_order} ||= 'normal';
-    my $path = $par{path}; # $par{path} is about to be chopped up
-    ($par{path},$par{absolute}) = $pkg->_split_path ( 
-                                  @par{qw/path absolute follow/});
-    if (exists($par{path}) && !defined $par{case_insensitive}) {
+    my $path = $par{path};    # $par{path} is about to be chopped up
+    ( $par{path}, $par{absolute} ) =
+      $pkg->_split_path( @par{qw/path absolute follow/} );
+    if ( exists( $par{path} ) && !defined $par{case_insensitive} ) {
         my $fspath = $par{absolute} ? $path : File::Spec->curdir;
-    	my $fscase = eval {
-    		Filesys::Type::case($fspath)} ||
-		Filesys::Type::Dummy::case;
-	$par{case_insensitive} = $fscase eq 'sensitive';
+        my $fscase = eval { Filesys::Type::case($fspath) }
+          || Filesys::Type::Dummy::case;
+        $par{case_insensitive} = $fscase eq 'sensitive';
     }
 
     $par{debug_output} ||= \*STDERR if $par{debug};
-    
-    unless (exists $par{match}) {
+
+    unless ( exists $par{match} ) {
         my $match_re = $par{absolute} ? '^/' : '^';
-        for (@{$par{path}}) {
+        for ( @{ $par{path} } ) {
             my $comp = quotemeta $_;
             $comp =~ s!((?:\\\?)+)!'(.{'.(length($1)/2).'})'!eg;
             $comp =~ s!\\\*!([^/]*)!g;
-            $match_re .= ($comp || '(.*?)') . '/';
+            $match_re .= ( $comp || '(.*?)' ) . '/';
         }
         $match_re =~ s!/$!\$!;
         $par{match} = $par{case_insensitive} ? qr/$match_re/i : qr/$match_re/;
     }
-    
+
     bless \%par, $pkg;
 }
 
 sub _debug {
-    my ($self,$mess) = @_;
+    my ( $self, $mess ) = @_;
 
     return unless $self->{debug};
     my $dbug = $self->{debug_output};
@@ -407,14 +421,14 @@ sub _debug {
 sub next {
     my $self = shift;
 
-    $self->_set_state( state => 'initial') unless exists $self->{state};
+    $self->_set_state( state => 'initial' ) unless exists $self->{state};
 
-    while (!exists $self->{retval}) {
-        $self->_debug("In state ".$self->{state}."\n");
+    while ( !exists $self->{retval} ) {
+        $self->_debug( "In state " . $self->{state} . "\n" );
         my $method = "_state_" . $self->{state};
         $self->$method;
     }
-    $self->_debug("Returned ".($self->{retval} || 'undef')."\n");
+    $self->_debug( "Returned " . ( $self->{retval} || 'undef' ) . "\n" );
     my $rv = $self->{retval};
     delete $self->{retval};
 
@@ -426,7 +440,7 @@ sub all {
 
     my @out;
 
-    while (my $match = $self->next) {
+    while ( my $match = $self->next ) {
         push @out, $match;
     }
 
@@ -440,14 +454,14 @@ sub close {
     delete $self->{stack};
     delete $self->{dir};
     delete $self->{seen_symlink};
-    $self->_set_state( state => 'finished');
+    $self->_set_state( state => 'finished' );
 }
 
 sub reset {
     my $self = shift;
 
     $self->close;
-    $self->_set_state( state => 'initial');
+    $self->_set_state( state => 'initial' );
 }
 
 sub _derived {
@@ -455,11 +469,11 @@ sub _derived {
 
     return $self->{resulting_path} unless exists $self->{derive};
 
-    my @out = ($self->{resulting_path});
-    my $re = $self->{match};
+    my @out = ( $self->{resulting_path} );
+    my $re  = $self->{match};
     $self->{resulting_path} =~ /$re/;
-    for (@{$self->{derive}}) {
-        push @out,eval(qq("$_"));
+    for ( @{ $self->{derive} } ) {
+        push @out, eval(qq("$_"));
     }
 
     \@out;
@@ -468,27 +482,30 @@ sub _derived {
 sub match {
     my $self = shift;
 
-    my ($new_re) = validate_pos( @_, { type => SCALARREF, optional => 1});
-    
-    $new_re ? ($self->{match} = $new_re) : $self->{match};
+    my ($new_re) = validate_pos( @_, { type => SCALARREF, optional => 1 } );
+
+    $new_re ? ( $self->{match} = $new_re ) : $self->{match};
 }
 
 sub append {
     my $self = shift;
 
-    my %par = validate( @_, {
-          path => { type => SCALAR | ARRAYREF },
-          follow => 0,
-          absolute => 0,
-       } );
+    my %par = validate(
+        @_,
+        {
+            path     => { type => SCALAR | ARRAYREF },
+            follow   => 0,
+            absolute => 0,
+        }
+    );
     my %new;
 
-    @new{qw/ path_remaining use_abs follow /} = $self->_split_path( 
-         @par {qw/ path absolute follow / } );
-    $new{state} = 'nextdir';    
-    $new{resulting_path} = '';
+    @new{qw/ path_remaining absolute follow /} =
+      $self->_split_path( @par{qw/ path absolute follow /} );
+    $new{state}          = 'nextdir';
+    $new{resulting_path} = $self->{absolute} ? '/' : '';
 
-    unshift @{$self->{state_stack}}, \%new;
+    unshift @{ $self->{state_stack} }, \%new;
 
     $self->_pop_state if $self->{state} eq 'finished';
 }
@@ -496,170 +513,201 @@ sub append {
 sub prepend {
     my $self = shift;
 
-    my %par = validate( @_, {
-          path => { type => SCALAR | ARRAYREF },
-          follow => 0,
-          absolute => 0,
-       } );
+    my %par = validate(
+        @_,
+        {
+            path     => { type => SCALAR | ARRAYREF },
+            follow   => 0,
+            absolute => 0,
+        }
+    );
 
     $self->_push_state;
-    
-    my ($pr,$abs,$fol) = $self->_split_path( 
-          @par { qw/ path absolute follow / } );
-    $self->{path_remaining} = $pr;
-    $self->{use_abs} = $abs;
-    $self->{follow} = $fol;
-    $self->{resulting_path} = '';
-    $self->_set_state( state => 'nextdir');    
-}
 
+    my ( $pr, $abs, $fol ) =
+      $self->_split_path( @par{qw/ path absolute follow /} );
+    $self->{path_remaining} = $pr;
+    $self->{absolute}       = $abs;
+    $self->{follow}         = $fol;
+    $self->{resulting_path} = $self->{absolute} ? '/' : '';
+    $self->_set_state( state => 'nextdir' );
+}
 
 sub _split_path {
     my $self = shift;
 
-    my ($path,$abs,$follow) = validate_pos(@_, 0, 0, 0);
+    my ( $path, $abs, $follow ) = validate_pos( @_, 0, 0, 0 );
 
-    return ($path,$abs,$follow) if !defined($path) || ref $path;
-    
+    return ( $path, $abs, $follow ) if !defined($path) || ref $path;
+
     $path =~ s!//!/!g;
     $abs = $path =~ s!^/!!;
     $path =~ s!^\./!/!;
-    my @out = split m(/),$path,-1;   #/ (syntax highlighting)
-    shift @out if $out[0] eq '';
-    pop @out if $out[-1] eq '';
+    my @out = split m(/), $path, -1;    #/ (syntax highlighting)
+    shift @out if $out[0]  eq '';
+    pop @out   if $out[-1] eq '';
 
-    (\@out,$abs,$follow);
+    ( \@out, $abs, $follow );
 }
 
 sub _set_state {
     my $self = shift;
 
-    my %par = validate( @_ , {
-                state => { type => SCALAR },
-                dir => { type => GLOBREF | CODEREF, optional => 1 },
-                wildcard => 0,
-                } );
+    my %par = validate(
+        @_,
+        {
+            state => { type => SCALAR },
+            dir   => { type => GLOBREF | CODEREF, optional => 1 },
+            wildcard => 0,
+        }
+    );
     $self->{$_} = $par{$_} for keys %par;
 }
 
 sub _push_state {
     my $self = shift;
 
-    $self->_debug( "Push state: ".
-           $self->{state}. " resulting_path: ".
-           $self->{resulting_path}.
-           " Wildcard: " . ($self->{wildcard} || '') .
-           " path_remaining: ".
-           join ('/',@{$self->{path_remaining}}). "\n");
-    push @{$self->{state_stack}}, { map { $_, 
-          (ref($self->{$_}) eq 'ARRAY') ? [@{$self->{$_}}] : $self->{$_} }
-          qw/ state path_remaining dir resulting_path / } ;
+    $self->_debug( "Push state: "
+          . $self->{state}
+          . " resulting_path: "
+          . $self->{resulting_path}
+          . " Wildcard: "
+          . ( $self->{wildcard} || '' )
+          . " path_remaining: "
+          . join( '/', @{ $self->{path_remaining} } )
+          . "\n" );
+    push @{ $self->{state_stack} }, {
+        map {
+            $_,
+              ( ref( $self->{$_} ) eq 'ARRAY' )
+              ? [ @{ $self->{$_} } ]
+              : $self->{$_}
+          } qw/ state path_remaining dir resulting_path /
+    };
 }
 
 sub _pop_state {
     my $self = shift;
 
     $self->{state_stack} ||= [];
-    my $newstate = @{$self->{state_stack}}
-                       ? pop ( @{$self->{state_stack}} )
-                       : { state => 'finished', dir => undef };
+    my $newstate =
+      @{ $self->{state_stack} }
+      ? pop( @{ $self->{state_stack} } )
+      : { state => 'finished', dir => undef };
     $self->{$_} = $newstate->{$_} for keys %$newstate;
-    $self->_debug( "Pop state to ".$self->{state}.
-          " resulting_path: ".
-           $self->{resulting_path}.
-           " Wildcard: " . ($self->{wildcard} || '') .
-           " path_remaining: ".
-           join ('/',@{$self->{path_remaining}}). "\n");
+    $self->_debug( "Pop state to "
+          . $self->{state}
+          . " resulting_path: "
+          . $self->{resulting_path}
+          . " Wildcard: "
+          . ( $self->{wildcard} || '' )
+          . " path_remaining: "
+          . join( '/', @{ $self->{path_remaining} } )
+          . "\n" );
 }
 
 sub _state_initial {
     my $self = shift;
 
     $self->{resulting_path} = $self->{absolute} ? '/' : '';
-    $self->{path_remaining} = [ @{$self->{path}} ];
+    $self->{path_remaining} = [ @{ $self->{path} } ];
 
-    $self->_set_state ( state => 'nextdir');
+    $self->_set_state( state => 'nextdir' );
 }
 
 sub _state_finished {
     my $self = shift;
-    
-    $self->{retval} = undef;   # Autovivification optimises this away :(
+
+    $self->{retval} = undef;    # Autovivification optimises this away :(
 }
 
 sub _state_nextdir {
     my $self = shift;
 
-    unless (@{$self->{path_remaining}}) {
+    unless ( @{ $self->{path_remaining} } ) {
         $self->_debug("Exhaused path\n");
         my $re = $self->{match};
-        $self->{retval} = $self->_derived 
-            if (-e $self->{resulting_path}) && 
-            ($self->{resulting_path} =~ /$re/);
+        $self->{retval} = $self->_derived
+          if ( -e $self->{resulting_path} )
+          && ( $self->{resulting_path} =~ /$re/ );
         $self->_pop_state;
         return;
     }
 
-    my $pathcomp = shift @{$self->{path_remaining}};
+    my $pathcomp = shift @{ $self->{path_remaining} };
     $self->_debug("Path component '$pathcomp'\n");
-    if ($pathcomp eq '') {
+    if ( $pathcomp eq '' ) {
         my $order = $self->{ellipsis_order};
-        $self->_set_state( state => 
-            ($order eq 'inside-out') ? 'nextdir' : 'ellipsis');
-        if ($order ne 'breadth-first') {
+        $self->_set_state(
+            state => ( $order eq 'inside-out' ) ? 'nextdir' : 'ellipsis' );
+        if ( $order ne 'breadth-first' ) {
             $self->_push_state;
-            $self->_set_state( state => 
-                ($order eq 'inside-out') ? 'ellipsis' : 'nextdir');
+            $self->_set_state(
+                state => ( $order eq 'inside-out' ) ? 'ellipsis' : 'nextdir' );
         }
-	
+
     }
-    elsif ($pathcomp !~ /\?|\*/) {
+    elsif ( $pathcomp !~ /\?|\*/ ) {
         $self->{resulting_path} .= $pathcomp;
-	my $rp = $self->{resulting_path};
-	my $sl = readlink $rp;
-	if ($sl) {
-	    my $slpath = File::Spec->rel2abs($sl,$rp);
-	    if (exists $self->{seen_symlink}{$slpath}) {
-	        $self->_pop_state;
-		return;
-	    }
-	    $self->{seen_symlink}{$slpath}++;
-	    $self->{path_remaining} = [] unless $self->{follow};
-	}
+        my $rp = $self->{resulting_path};
+        if (exists($self->{exclude}) && $rp =~ /$self->{exclude}/) {
+            $self->_pop_state;
+            return;
+        }
+        my $sl = readlink $rp;
+        if ($sl) {
+            my $slpath = File::Spec->rel2abs( $sl, $rp );
+            if ( exists $self->{seen_symlink}{$slpath} ) {
+                $self->_pop_state;
+                return;
+            }
+            $self->{seen_symlink}{$slpath}++;
+            $self->{path_remaining} = [] unless $self->{follow};
+        }
         $self->{resulting_path} .= '/' if -d $self->{resulting_path};
     }
     else {
         my $wcdir;
-        opendir $wcdir,$self->{resulting_path} || '.';
+        opendir $wcdir, $self->{resulting_path} || '.';
         my $wc_re = quotemeta $pathcomp;
         $wc_re =~ s!((?:\\\?)+)!'(.{'.(length($1)/2).'})'!eg;
         $wc_re =~ s!\\\*!([^/]*)!g;
         my %newstate = (
-                           state => 'wildcard', 
-                             dir => $wcdir, 
-                        wildcard => $self->{case_insensitive} ? 
-                                              qr(^$wc_re$)i : 
-                                              qr(^$wc_re$));
-        if ($self->{sort}) {
-            my @wcmatch = grep { 
-                ($_ ne '.') && 
-                ($_ ne '..') && 
-                ($self->{case_insensitive} ? /$wc_re/i : /$wc_re/)}
-                readdir($wcdir);
+            state    => 'wildcard',
+            dir      => $wcdir,
+            wildcard => $self->{case_insensitive}
+            ? qr(^$wc_re$)i
+            : qr(^$wc_re$)
+        );
+        if ( $self->{sort} ) {
+            my @wcmatch = grep {
+                     ( $_ ne '.' )
+                  && ( $_ ne '..' )
+                  && ( $self->{case_insensitive} ? /$wc_re/i : /$wc_re/ )
+            } readdir($wcdir);
 
-            if ($^O =~ /vms/i) {
+            if ( $^O =~ /vms/i ) {
                 s/\.dir$// for @wcmatch;
             }
-            
-            @wcmatch = (ref($self->{sort}) eq 'CODE') ?
-                       (sort {&{$self->{sort}}($a,$b)} @wcmatch) :
-		       $self->{case_insensitive} ?
-		       (sort {lc($a) cmp lc($b)} @wcmatch) :
-                       (sort @wcmatch);
+
+            @wcmatch =
+                ( ref( $self->{sort} ) eq 'CODE' )
+              ? ( sort { &{ $self->{sort} }( $a, $b ) } @wcmatch )
+              : $self->{case_insensitive}
+              ? ( sort { lc($a) cmp lc($b) } @wcmatch )
+              : ( sort @wcmatch );
+            if ($self->{exclude}) {
+                @wcmatch = grep { ($self->{path_remaining}.$_) 
+                    !~ /$self->{exclude}/ } @wcmatch;
+            }
             $newstate{state} = 'wildcard_sorted';
-            $newstate{dir} = sub {shift @wcmatch};
+            $newstate{dir} = sub { 
+                my $fil = (shift @wcmatch) || '';
+                my $rem = join ' ',@wcmatch;
+                $self->_debug("wildcard_sorted yields $fil remaining $rem\n");
+                return $fil;};
         }
-        $self->_set_state( %newstate);
+        $self->_set_state(%newstate);
     }
 }
 
@@ -667,42 +715,44 @@ sub _state_wildcard {
     my $self = shift;
 
     my $fil = '.';
-    my $re = $self->{wildcard};
-    while (($fil eq '.') || ($fil eq '..') || ($fil !~ /$re/)) {
+    my $re  = $self->{wildcard};
+    while ( ( $fil eq '.' ) || ( $fil eq '..' ) || ( $fil !~ /$re/ )
+                || (exists($self->{exclude}) 
+                    && ($self->{resulting_path}.$fil =~ /$self->{exclude}/))) {
         $fil = readdir $self->{dir};
         return $self->_pop_state unless defined $fil;
     }
     $fil =~ s/.dir$// if $^O =~ /vms/i;
     $self->_push_state;
-    unshift @{$self->{path_remaining}}, $fil;
-    $self->_set_state ( state => 'nextdir' );
+    unshift @{ $self->{path_remaining} }, $fil;
+    $self->_set_state( state => 'nextdir' );
 }
 
 sub _state_wildcard_sorted {
     my $self = shift;
 
-    my $fil = &{$self->{dir}};
+    my $fil = &{ $self->{dir} };
     return $self->_pop_state unless $fil;
     $self->_push_state;
-    unshift @{$self->{path_remaining}}, $fil;
-    $self->_set_state ( state => 'nextdir' );
-}    
+    unshift @{ $self->{path_remaining} }, $fil;
+    $self->_set_state( state => 'nextdir' );
+}
 
 sub _state_ellipsis {
     my $self = shift;
 
-    if ($self->{ellipsis_order} eq 'breadth-first') {
-        unshift @{$self->{path_remaining}}, '*', '';
+    if ( $self->{ellipsis_order} eq 'breadth-first' ) {
+        unshift @{ $self->{path_remaining} }, '*', '';
         $self->_set_state( state => 'nextdir' );
         $self->_push_state;
-        splice @{$self->{path_remaining}},1,1;
+        splice @{ $self->{path_remaining} }, 1, 1;
     }
     else {
-        unshift @{$self->{path_remaining}}, '*', '';
+        unshift @{ $self->{path_remaining} }, '*', '';
         $self->_set_state( state => 'nextdir' );
     }
 }
 
-1; #this line is important and will help the module return a true value
+1;    #this line is important and will help the module return a true value
 __END__
 
