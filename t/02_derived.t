@@ -22,7 +22,10 @@ my @found = map { [ map {lc $_} @$_ ] } $mods->all;
 
 #03 
 is_deeply (\@found, [ [ qw( blib/lib/file/wildcard.pm blib/lib/file/wildcard.tmp ) ],
-                      [ qw( lib/file/wildcard.pm lib/file/wildcard.tmp)]], 
+                      [ qw( blib/lib/file/wildcard/find.pm blib/lib/file/wildcard/find.tmp)], 
+                      [ qw( lib/file/wildcard.pm lib/file/wildcard.tmp)],
+                      [ qw( lib/file/wildcard/find.pm lib/file/wildcard/find.tmp)], 
+                      ], 
              'Returned expected derived list');
 
 $mods = File::Wildcard->new( path => [ split m'/', 'lib/File/Wild????.*'],

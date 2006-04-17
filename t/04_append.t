@@ -24,7 +24,9 @@ $mods->append( path => './//04*.t' );
 my  @found = map {lc $_} $mods->all;
 
 #04 
-is_deeply (\@found, [qw( lib/file/wildcard.pm t/04_append.t )], 
+is_deeply (\@found, [qw( lib/file/wildcard.pm
+                         lib/file/wildcard/find.pm
+                         t/04_append.t )], 
              'Appended wildcards');
              
 $mods->prepend( path => './//04*.t' );
@@ -33,7 +35,9 @@ $mods->prepend( path => 'lib///*.pm' );
 @found = map {lc $_} $mods->all;
 
 #05 
-is_deeply (\@found, [qw( lib/file/wildcard.pm t/04_append.t )], 
+is_deeply (\@found, [qw( lib/file/wildcard.pm 
+                         lib/file/wildcard/find.pm
+                         t/04_append.t )], 
              'Prepended wildcards');
 
 $mods->append( path => 'lib/File///' );
@@ -41,4 +45,6 @@ $mods->match( qr{ \Alib/File/(.*)\.pm\z }xms );
 @found = map {lc $_} $mods->all;
 
 #06
-is_deeply (\@found, [qw( lib/file/wildcard.pm )], 'Append with match');
+is_deeply (\@found, [qw( lib/file/wildcard/find.pm
+                         lib/file/wildcard.pm)], 
+                         'Append with match');

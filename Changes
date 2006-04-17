@@ -1,5 +1,8 @@
 Revision history for Perl module File::Wildcard
 
+0.08 Mon Apr 17 2006
+      New simple interface File::Wildcard::Find
+
 0.07 Sat Dec 31 2005
       Fixed bug: appending absolute paths didn't work
       New option: exclude for tree pruning
