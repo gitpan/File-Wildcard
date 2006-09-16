@@ -6,7 +6,7 @@ use strict;
 use Test::More;
 
 BEGIN {
-    if ($^O =~ /vms/i) {
+    if ( $^O =~ /vms/i ) {
         plan skip_all => "Cannot test absolute POSIX files on this platform";
     }
     else {
@@ -14,24 +14,25 @@ BEGIN {
     }
 
     #01
-    use_ok( 'File::Wildcard' ); 
+    use_ok('File::Wildcard');
 }
 
 use File::Spec;
 
 my $debug = $ENV{FILE_WILDCARD_DEBUG} || 0;
 
+my $temp = File::Spec->tmpdir . '/File-Wildcard-test';
+$temp =~ s!\\!/!g;    # for Windows silly slash direction
 
-my $temp = File::Spec->tmpdir.'/File-Wildcard-test';
-$temp =~ s!\\!/!g;      # for Windows silly slash direction
+# Just in case the temp directory is lying around...
 
-# Just in case the temp directory is lying around... 
-
-if (-e $temp) {
-    my $wcrm = File::Wildcard->new( path => "$temp///",
-                          ellipsis_order => "inside-out");
-    for ($wcrm->all) {
-        if (-d $_) {
+if ( -e $temp ) {
+    my $wcrm = File::Wildcard->new(
+        path           => "$temp///",
+        ellipsis_order => "inside-out"
+    );
+    for ( $wcrm->all ) {
+        if ( -d $_ ) {
             rmdir $_;
         }
         else {
@@ -55,103 +56,121 @@ close FOO;
 
 my $sens = Filesys::Type::case($temp) ne 'sensitive';
 
-my $mods = File::Wildcard->new (path => "$temp/abs/foo/lish.tmp",
-		    case_insensitive => $sens,
-                               debug => $debug);
+my $mods = File::Wildcard->new(
+    path             => "$temp/abs/foo/lish.tmp",
+    case_insensitive => $sens,
+    debug            => $debug
+);
 
 #02
-isa_ok ($mods, 'File::Wildcard', "return from new");
+isa_ok( $mods, 'File::Wildcard', "return from new" );
 
-#03 
-like ($mods->next, qr"$temp/abs/foo/lish.tmp"i, 'Simple case, no wildcard');
+#03
+like( $mods->next, qr"$temp/abs/foo/lish.tmp"i, 'Simple case, no wildcard' );
 
 #04
-ok (!$mods->next, 'Only found one file');
+ok( !$mods->next, 'Only found one file' );
 
-my ($junk,@chunks) = split m'/',"$temp/abs/*/*.tmp";
+my ( $junk, @chunks ) = split m'/', "$temp/abs/*/*.tmp";
 
-$mods = File::Wildcard->new (path => \@chunks,
-		 case_insensitive => $sens,
-                            debug => $debug,
-			 absolute => 1,
-                             sort => 1);
+$mods = File::Wildcard->new(
+    path             => \@chunks,
+    case_insensitive => $sens,
+    debug            => $debug,
+    absolute         => 1,
+    sort             => 1
+);
 
 #05
-isa_ok ($mods, 'File::Wildcard', "return from new");
+isa_ok( $mods, 'File::Wildcard', "return from new" );
 
 my @found = $mods->all;
 
 SKIP:
 {
     skip 'This test unreliable on Windows', 1 if $^O =~ /win/i;
-    
-#06 
-is_deeply (\@found, ["$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp"], 
-             'Wildcard in filename');
+
+    #06
+    is_deeply(
+        \@found,
+        [ "$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp" ],
+        'Wildcard in filename'
+    );
 }
 
-$mods = File::Wildcard->new (path => "$temp///*.tmp",
-		 case_insensitive => $sens,
-                            debug => $debug,
-                             sort => 1);
+$mods = File::Wildcard->new(
+    path             => "$temp///*.tmp",
+    case_insensitive => $sens,
+    debug            => $debug,
+    sort             => 1
+);
 
 #07
-isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
-#08 
-is_deeply (\@found, ["$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp"], 
-             'Ellipsis found tmp files');
+#08
+is_deeply(
+    \@found,
+    [ "$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp" ],
+    'Ellipsis found tmp files'
+);
 
-$mods = File::Wildcard->new (path => "$temp///",
-		 case_insensitive => $sens,
-                            debug => $debug,
-                             sort => 1);
+$mods = File::Wildcard->new(
+    path             => "$temp///",
+    case_insensitive => $sens,
+    debug            => $debug,
+    sort             => 1
+);
 
 #09
-isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
-#10 
-is_deeply (\@found, [ "$temp/",
-                      "$temp/abs/",
-                      "$temp/abs/bar/", 
-                      "$temp/abs/bar/drink.tmp", 
-                      "$temp/abs/foo/",
-                      "$temp/abs/foo/lish.tmp",
-                    ], 
-             'Recursive directory search (normal)');
+#10
+is_deeply(
+    \@found,
+    [   "$temp/",         "$temp/abs/",
+        "$temp/abs/bar/", "$temp/abs/bar/drink.tmp",
+        "$temp/abs/foo/", "$temp/abs/foo/lish.tmp",
+    ],
+    'Recursive directory search (normal)'
+);
 
-$mods = File::Wildcard->new (path => "$temp///",
-		 case_insensitive => $sens,
-                            debug => $debug,
-                             sort => sub { $_[1] cmp $_[0] });
+$mods = File::Wildcard->new(
+    path             => "$temp///",
+    case_insensitive => $sens,
+    debug            => $debug,
+    sort             => sub { $_[1] cmp $_[0] }
+);
 
 #11
-isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
-#12 
-is_deeply (\@found, [ "$temp/",
-                      "$temp/abs/",
-                      "$temp/abs/foo/",
-                      "$temp/abs/foo/lish.tmp",
-                      "$temp/abs/bar/", 
-                      "$temp/abs/bar/drink.tmp", 
-                    ], 
-             'Recursive directory search (custom sort)');
+#12
+is_deeply(
+    \@found,
+    [   "$temp/",         "$temp/abs/",
+        "$temp/abs/foo/", "$temp/abs/foo/lish.tmp",
+        "$temp/abs/bar/", "$temp/abs/bar/drink.tmp",
+    ],
+    'Recursive directory search (custom sort)'
+);
 
-$mods = File::Wildcard->new (path => "$temp///",
-		 case_insensitive => $sens,
-                            debug => $debug,
-                             sort => 1,
-                   ellipsis_order => 'breadth-first');
+$mods = File::Wildcard->new(
+    path             => "$temp///",
+    case_insensitive => $sens,
+    debug            => $debug,
+    sort             => 1,
+    ellipsis_order   => 'breadth-first'
+);
 
 #13
-isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
@@ -159,55 +178,55 @@ isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
 # I have not found an easy way round this.
 
 #14
-is_deeply (\@found, [ 
-                      "$temp/abs/",
-                      "$temp/abs/bar/", 
-                      "$temp/abs/foo/",
-                      "$temp/abs/bar/drink.tmp", 
-                      "$temp/abs/foo/lish.tmp",
-                    ], 
-             'Recursive directory search (breadth-first)');
+is_deeply(
+    \@found,
+    [   "$temp/abs/",     "$temp/abs/bar/",
+        "$temp/abs/foo/", "$temp/abs/bar/drink.tmp",
+        "$temp/abs/foo/lish.tmp",
+    ],
+    'Recursive directory search (breadth-first)'
+);
 
-$mods = File::Wildcard->new (path => "$temp///",
-		 case_insensitive => $sens,
-                            debug => $debug,
-                             sort => 1,
-                   ellipsis_order => 'inside-out');
+$mods = File::Wildcard->new(
+    path             => "$temp///",
+    case_insensitive => $sens,
+    debug            => $debug,
+    sort             => 1,
+    ellipsis_order   => 'inside-out'
+);
 
 #15
-isa_ok ($mods, 'File::Wildcard', "(ellipsis) return from new");
+isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
-#16 
-is_deeply (\@found, [ 
-                      "$temp/abs/bar/drink.tmp", 
-                      "$temp/abs/bar/", 
-                      "$temp/abs/foo/lish.tmp",
-                      "$temp/abs/foo/",
-                      "$temp/abs/",
-                      "$temp/",
-                    ], 
-             'Recursive directory search (inside-out)');
+#16
+is_deeply(
+    \@found,
+    [   "$temp/abs/bar/drink.tmp", "$temp/abs/bar/",
+        "$temp/abs/foo/lish.tmp",  "$temp/abs/foo/",
+        "$temp/abs/",              "$temp/",
+    ],
+    'Recursive directory search (inside-out)'
+);
 
 $mods->append( path => "$temp///" );
 @found = $mods->all;
 
-#17 
-is_deeply (\@found, [ 
-                      "$temp/abs/bar/drink.tmp", 
-                      "$temp/abs/bar/", 
-                      "$temp/abs/foo/lish.tmp",
-                      "$temp/abs/foo/",
-                      "$temp/abs/",
-                      "$temp/",
-                    ], 
-             'Append to absolute');
-             
+#17
+is_deeply(
+    \@found,
+    [   "$temp/abs/bar/drink.tmp", "$temp/abs/bar/",
+        "$temp/abs/foo/lish.tmp",  "$temp/abs/foo/",
+        "$temp/abs/",              "$temp/",
+    ],
+    'Append to absolute'
+);
+
 # Tidy up after tests
 
 for (@found) {
-    if (-d $_) {
+    if ( -d $_ ) {
         rmdir $_;
     }
     else {
@@ -218,4 +237,4 @@ for (@found) {
 rmdir $temp;
 
 #18
-ok(!-e $temp,"Test has tidied up after itself");
+ok( !-e $temp, "Test has tidied up after itself" );

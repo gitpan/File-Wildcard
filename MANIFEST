@@ -1,7 +1,6 @@
 MANIFEST
 LICENSE
 README
-Todo
 Changes
 lib/File/Wildcard.pm
 lib/File/Wildcard/Find.pm

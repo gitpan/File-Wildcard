@@ -8,13 +8,13 @@ BEGIN {
     @ISA         = qw(Exporter);
     @EXPORT      = qw(findbegin findnext findall);
     @EXPORT_OK   = qw(findbegin findnext findall $finder);
-    %EXPORT_TAGS = (all => \@EXPORT_OK);
+    %EXPORT_TAGS = ( all => \@EXPORT_OK );
 }
 
 use File::Wildcard;
 
 sub findbegin {
-    $finder = File::Wildcard->new(path => shift);
+    $finder = File::Wildcard->new( path => shift );
 }
 
 sub findnext {
@@ -22,7 +22,7 @@ sub findnext {
 }
 
 sub findall {
-    my $allfinder = File::Wildcard->new(path => shift);
+    my $allfinder = File::Wildcard->new( path => shift );
     $allfinder->all;
 }
 

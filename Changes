@@ -1,5 +1,9 @@
 Revision history for Perl module File::Wildcard
 
+0.09 Sat Sep 18 2006
+      Fix false positive in t/04_append on solaris 
+      (sort order not predictable)
+
 0.08 Mon Apr 17 2006
       New simple interface File::Wildcard::Find
 

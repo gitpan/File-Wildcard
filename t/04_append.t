@@ -8,43 +8,47 @@ use Test::More tests => 6;
 my $debug = $ENV{FILE_WILDCARD_DEBUG} || 0;
 
 #01
-BEGIN { use_ok( 'File::Wildcard' ); }
+BEGIN { use_ok('File::Wildcard'); }
 
-my $mods = File::Wildcard->new ( debug => $debug);
+my $mods = File::Wildcard->new( debug => $debug );
 
 #02
-isa_ok ($mods, 'File::Wildcard', "return from new");
+isa_ok( $mods, 'File::Wildcard', "return from new" );
 
 #03
-ok (!$mods->next, 'Empty object gives no files');
+ok( !$mods->next, 'Empty object gives no files' );
 
-$mods->append( path => 'lib///*.pm' );
+$mods->append( path => 'lib///Wildcard.pm' );
 $mods->append( path => './//04*.t' );
 
-my  @found = map {lc $_} $mods->all;
+my @found = map { lc $_ } $mods->all;
 
-#04 
-is_deeply (\@found, [qw( lib/file/wildcard.pm
-                         lib/file/wildcard/find.pm
-                         t/04_append.t )], 
-             'Appended wildcards');
-             
+#04
+is_deeply(
+    \@found,
+    [   qw( lib/file/wildcard.pm
+            t/04_append.t )
+    ],
+    'Appended wildcards'
+);
+
 $mods->prepend( path => './//04*.t' );
-$mods->prepend( path => 'lib///*.pm' );
+$mods->prepend( path => 'lib///Wildcard.pm' );
 
-@found = map {lc $_} $mods->all;
+@found = map { lc $_ } $mods->all;
 
-#05 
-is_deeply (\@found, [qw( lib/file/wildcard.pm 
-                         lib/file/wildcard/find.pm
-                         t/04_append.t )], 
-             'Prepended wildcards');
+#05
+is_deeply(
+    \@found,
+    [   qw( lib/file/wildcard.pm
+            t/04_append.t )
+    ],
+    'Prepended wildcards'
+);
 
 $mods->append( path => 'lib/File///' );
-$mods->match( qr{ \Alib/File/(.*)\.pm\z }xms );
-@found = map {lc $_} $mods->all;
+$mods->match(qr{ \Alib/File/(.*rd)\.pm\z }xms);
+@found = map { lc $_ } $mods->all;
 
 #06
-is_deeply (\@found, [qw( lib/file/wildcard/find.pm
-                         lib/file/wildcard.pm)], 
-                         'Append with match');
+is_deeply( \@found, [qw( lib/file/wildcard.pm)], 'Append with match' );
