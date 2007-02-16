@@ -10,7 +10,7 @@ BEGIN {
         plan skip_all => "Cannot test absolute POSIX files on this platform";
     }
     else {
-        plan tests => 18;
+        plan tests => 19;
     }
 
     #01
@@ -187,6 +187,24 @@ is_deeply(
     'Recursive directory search (breadth-first)'
 );
 
+# Append absolute bug
+
+$mods = File::Wildcard->new(
+    debug => $debug,
+    sort  => 1
+);
+
+$mods->append( path => "$temp///*.tmp" );
+
+@found = $mods->all;
+
+#15
+is_deeply(
+    \@found,
+    [ "$temp/abs/bar/drink.tmp", "$temp/abs/foo/lish.tmp" ],
+    "Appended absolute"
+);
+
 $mods = File::Wildcard->new(
     path             => "$temp///",
     case_insensitive => $sens,
@@ -195,12 +213,12 @@ $mods = File::Wildcard->new(
     ellipsis_order   => 'inside-out'
 );
 
-#15
+#16
 isa_ok( $mods, 'File::Wildcard', "(ellipsis) return from new" );
 
 @found = $mods->all;
 
-#16
+#17
 is_deeply(
     \@found,
     [   "$temp/abs/bar/drink.tmp", "$temp/abs/bar/",
@@ -213,7 +231,7 @@ is_deeply(
 $mods->append( path => "$temp///" );
 @found = $mods->all;
 
-#17
+#18
 is_deeply(
     \@found,
     [   "$temp/abs/bar/drink.tmp", "$temp/abs/bar/",
@@ -236,5 +254,5 @@ for (@found) {
 
 rmdir $temp;
 
-#18
+#19
 ok( !-e $temp, "Test has tidied up after itself" );

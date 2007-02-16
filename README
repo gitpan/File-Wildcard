@@ -97,6 +97,16 @@ DESCRIPTION
         working directory if the path is not absolute. If the path is
         absolute, you should specify the case_sensitivity option explicitly.
 
+    "exclude"
+        You can provide a regexp to apply to any generated paths, which will
+        cause any matching paths not to be processed. If the root of a
+        directory tree matches, no processing is done on the entire tree.
+
+        This option can be useful for excluding version control
+        repositories, e.g.
+
+          exclude => qr/.svn/
+
     "match"
         Optional. If you do not specify a regexp, you get all the files that
         match the glob; in addition, new will set up a regexp for you, to
@@ -281,7 +291,7 @@ BUGS
 
 AUTHOR
             Ivor Williams
-            ivorw-file-wildcard at xemaps.com
+            ivorw-file-wildcard010 at xemaps.com
 
 COPYRIGHT
     This program is free software; you can redistribute it and/or modify it

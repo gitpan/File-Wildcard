@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = 0.09;
+our $VERSION = '0.10';
 
 =head1 NAME
 
@@ -323,7 +323,7 @@ Please report bugs to http://rt.cpan.org
 =head1 AUTHOR
 
 	Ivor Williams
-	ivorw-file-wildcard at xemaps.com
+	ivorw-file-wildcard010 at xemaps.com
 
 =head1 COPYRIGHT
 
@@ -501,11 +501,11 @@ sub append {
     @new{qw/ path_remaining absolute follow /}
         = $self->_split_path( @par{qw/ path absolute follow /} );
     $new{state} = 'nextdir';
-    $new{resulting_path} = $self->{absolute} ? '/' : '';
+    $new{resulting_path} = $new{absolute} ? '/' : '';
 
     unshift @{ $self->{state_stack} }, \%new;
 
-    $self->_pop_state if $self->{state} eq 'finished';
+    $self->_pop_state if !$self->{state} || ( $self->{state} eq 'finished' );
 }
 
 sub prepend {
@@ -637,9 +637,11 @@ sub _state_nextdir {
             state => ( $order eq 'inside-out' ) ? 'nextdir' : 'ellipsis' );
         if ( $order ne 'breadth-first' ) {
             $self->_push_state;
-            $self->_set_state( state => ( $order eq 'inside-out' )
+            $self->_set_state(
+                state => ( $order eq 'inside-out' )
                 ? 'ellipsis'
-                : 'nextdir' );
+                : 'nextdir'
+            );
         }
 
     }

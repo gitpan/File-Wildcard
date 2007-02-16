@@ -1,5 +1,8 @@
 Revision history for Perl module File::Wildcard
 
+0.10 Fri Feb 16 2007
+      Fix append absolute bug & add new test for it
+
 0.09 Sat Sep 18 2006
       Fix false positive in t/04_append on solaris 
       (sort order not predictable)
