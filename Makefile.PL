@@ -20,4 +20,5 @@ WriteMakefile(
     PREREQ_PM    => {
                      'Module::Optional' => 0,
                     },
+    LICENSE      => 'perl',
 );

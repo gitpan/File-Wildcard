@@ -2,7 +2,7 @@
 package File::Wildcard;
 use strict;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 =head1 NAME
 
@@ -585,8 +585,8 @@ sub _pop_state {
     my $self = shift;
 
     $self->{state_stack} ||= [];
-    my $newstate =
-        @{ $self->{state_stack} }
+    my $newstate
+        = @{ $self->{state_stack} }
         ? pop( @{ $self->{state_stack} } )
         : { state => 'finished', dir => undef };
     $self->{$_} = $newstate->{$_} for keys %$newstate;
@@ -666,7 +666,10 @@ sub _state_nextdir {
     }
     else {
         my $wcdir;
-        opendir $wcdir, $self->{resulting_path} || '.';
+        if ( !opendir $wcdir, $self->{resulting_path} || '.' ) {
+            $self->_pop_state;
+            return;
+        }
         my $wc_re = quotemeta $pathcomp;
         $wc_re =~ s!((?:\\\?)+)!'(.{'.(length($1)/2).'})'!eg;
         $wc_re =~ s!\\\*!([^/]*)!g;
@@ -688,8 +691,8 @@ sub _state_nextdir {
                 s/\.dir$// for @wcmatch;
             }
 
-            @wcmatch =
-                  ( ref( $self->{sort} ) eq 'CODE' )
+            @wcmatch
+                = ( ref( $self->{sort} ) eq 'CODE' )
                 ? ( sort { &{ $self->{sort} }( $a, $b ) } @wcmatch )
                 : $self->{case_insensitive}
                 ? ( sort { lc($a) cmp lc($b) } @wcmatch )

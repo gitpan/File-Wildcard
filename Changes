@@ -1,5 +1,8 @@
 Revision history for Perl module File::Wildcard
 
+0.11 Fri Mar 13 2009
+      Stop warnings and errors for readdir looking under files.
+
 0.10 Fri Feb 16 2007
       Fix append absolute bug & add new test for it
 
